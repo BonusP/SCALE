@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PlotLogic Extraction Debug</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/debug.css">
+  </head>
+  <body class="debug-quad-page">
+    <header class="topbar">
+      <div>
+        <h1>Extraction Debug <span id="debugTitle" class="debug-title-inline"></span></h1>
+        <p><span id="debugSubtitle">Loading extraction artifacts...</span> <span id="debugMeta"></span></p>
+      </div>
+      <div class="top-actions">
+        <a id="backLink" class="secondary-link" href="/">Back to MVP</a>
+        <a id="csvDebugButton" class="download-button hidden" href="#">Download CSV</a>
+      </div>
+    </header>
+
+    <main class="debug-layout debug-quad-layout">
+      <section id="debugError" class="issues hidden"></section>
+
+      <section class="debug-quad">
+        <article class="debug-panel">
+          <div class="debug-panel-header">
+            <h2>Panel Geometry</h2>
+            <div class="muted">plot frame, axes, tick labels, legend, annotations</div>
+          </div>
+          <div class="debug-stage-wrap">
+            <div id="panelStage" class="debug-stage"></div>
+            <div id="panelLegend" class="debug-legend"></div>
+          </div>
+        </article>
+
+        <article class="debug-panel">
+          <div class="debug-panel-header">
+            <h2>Color Filter Source</h2>
+            <div class="muted">input image for color segmentation</div>
+          </div>
+          <div class="debug-stage-wrap">
+            <div id="colorStage" class="debug-stage"></div>
+          </div>
+        </article>
+
+        <article class="debug-panel">
+          <div class="debug-panel-header"><h2>Ticks And Labels</h2></div>
+          <div id="tickBox" class="debug-table-wrap"></div>
+        </article>
+
+        <article class="debug-panel">
+          <div class="debug-panel-header">
+            <h2>Interactive Extracted Chart</h2>
+            <div class="muted">curve_series_data.json, with pixel trace fallback</div>
+          </div>
+          <div id="interactiveChartBox" class="debug-chart-wrap"></div>
+        </article>
+      </section>
+    </main>
+
+    <script src="/static/debug.js"></script>
+  </body>
+</html>

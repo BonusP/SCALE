@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PlotLogic Paper Results</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1 id="paperTitle">Paper Results</h1>
+        <p id="paperMeta">Loading...</p>
+      </div>
+      <div class="top-actions">
+        <a class="secondary-link" href="/">MVP Home</a>
+        <button id="refreshPaperResultsBtn" class="icon-button" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <main class="paper-results-layout">
+      <section class="paper-results-summary">
+        <div>
+          <div class="debug-kicker">PlotLogic Status</div>
+          <h2 id="paperResultStatus">-</h2>
+        </div>
+        <div class="summary-metrics">
+          <span id="metricPanels">0 panels</span>
+          <span id="metricExtracted">0 extracted</span>
+          <span id="metricCsv">0 CSV</span>
+          <span id="metricTargets">0 targets</span>
+        </div>
+      </section>
+
+      <section class="paper-results-grid">
+        <aside class="paper-results-list-panel">
+          <div class="panel-header">
+            <h2>Latest Paper Results</h2>
+          </div>
+          <div id="paperChartsList" class="paper-results-list"></div>
+        </aside>
+
+        <section class="paper-results-detail-panel">
+          <div id="paperChartEmpty" class="empty-state">Select a panel result.</div>
+          <div id="paperChartDetail" class="hidden">
+            <div class="detail-toolbar">
+              <div>
+                <h2 id="paperChartTitle"></h2>
+                <div id="paperChartSubtitle" class="muted"></div>
+              </div>
+              <div class="detail-actions">
+                <a id="paperCsvButton" class="download-button hidden" href="#">Download CSV</a>
+                <a id="paperDebugButton" class="secondary-link hidden" href="#" target="_blank" rel="noreferrer">Debug extraction</a>
+                <a id="paperJobButton" class="secondary-link hidden" href="#">Open Job</a>
+              </div>
+            </div>
+            <div class="image-row">
+              <figure>
+                <figcaption>Source panel</figcaption>
+                <img id="paperSourceImage" alt="Source panel">
+              </figure>
+              <figure>
+                <figcaption>Extraction overlay</figcaption>
+                <img id="paperOverlayImage" alt="Extraction overlay">
+              </figure>
+            </div>
+            <div id="paperIssuesBox" class="issues"></div>
+            <div id="paperArtifactBox" class="artifact-box hidden"></div>
+            <div class="table-wrap">
+              <table id="paperSeriesTable">
+                <thead>
+                  <tr>
+                    <th>Series</th>
+                    <th>Role</th>
+                    <th>Axis</th>
+                    <th>Points</th>
+                    <th>First point</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="paper-results-jobs">
+        <div class="panel-header">
+          <h2>Extraction Runs For This Paper</h2>
+        </div>
+        <div id="paperJobsList" class="paper-run-list"></div>
+      </section>
+    </main>
+
+    <script src="/static/paper_results.js"></script>
+  </body>
+</html>

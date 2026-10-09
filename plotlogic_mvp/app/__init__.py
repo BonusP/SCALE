@@ -1,0 +1,1 @@
+"""PlotLogic MVP application package."""

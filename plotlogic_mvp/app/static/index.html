@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- ###수정 실험 GUI를 원본과 구분하는 페이지 제목을 표시합니다. -->
+    <title>SCALE</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <!-- ###수정 화면 상단에 원본과 구분되는 실험 이름을 표시합니다. -->
+        <h1>SCALE</h1>
+        <p><!-- ###수정 실험의 변경 설정과 별도 실행 경로를 화면에 표시합니다. -->
+        Scientific Chart Analysis with Layout-aware Extraction</p>
+      </div>
+      <div class="top-actions">
+        <a class="secondary-link" href="/cvp-lab">C-V-P Lab</a>
+        <button id="refreshJobsBtn" class="icon-button" title="Refresh jobs" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="upload-panel">
+        <form id="uploadForm" class="upload-box">
+          <!-- 파일 선택 영문 표시: 브라우저 언어와 관계없이 Choose File로 보이도록 기본 버튼을 숨깁니다. -->
+          <div class="file-picker">
+            <label for="pdfInput" class="file-pick-button">Choose File</label>
+            <span id="pdfFileName" class="file-pick-name">No file chosen</span>
+            <input id="pdfInput" type="file" accept="application/pdf" hidden>
+          </div>
+          <button id="uploadBtn" type="submit">Upload PDF</button>
+        </form>
+        <div id="uploadStatus" class="muted"></div>
+      </section>
+
+      <section class="workspace">
+        <aside class="jobs-panel">
+          <div class="panel-header">
+            <h2>Jobs</h2>
+          </div>
+          <div id="jobsList" class="list"></div>
+        </aside>
+
+        <section class="job-panel">
+          <div id="emptyState" class="empty-state">
+            Upload a PDF or select a previous job.
+          </div>
+
+          <div id="jobView" class="hidden">
+            <div class="job-summary">
+              <div>
+                <div id="jobTitle" class="job-title"></div>
+                <div id="jobMeta" class="muted"></div>
+              </div>
+              <div class="status-block">
+                <span id="jobStatus" class="status-pill"></span>
+                <span id="jobPhase" class="muted"></span>
+              </div>
+            </div>
+            <div class="progress-track">
+              <div id="progressBar" class="progress-bar"></div>
+            </div>
+
+            <div class="content-grid">
+              <div class="charts-panel">
+                <div class="panel-header">
+                  <h2>Extracted Images</h2>
+                </div>
+                <div id="chartsList" class="chart-list"></div>
+              </div>
+
+              <div class="detail-panel">
+                <div id="chartEmpty" class="empty-state">
+                  Select an extracted image.
+                </div>
+                <div id="chartDetail" class="hidden">
+                  <div class="detail-toolbar">
+                    <div>
+                      <h2 id="chartTitle"></h2>
+                      <div id="chartSubtitle" class="muted"></div>
+                    </div>
+                    <div class="detail-actions">
+                      <a id="csvButton" class="download-button hidden" href="#">Download CSV</a>
+                      <a id="debugButton" class="secondary-link hidden" href="#" target="_blank" rel="noreferrer">Debug extraction</a>
+                    </div>
+                  </div>
+                  <div class="image-row">
+                    <figure>
+                      <figcaption>Source image</figcaption>
+                      <img id="sourceImage" alt="Extracted source">
+                    </figure>
+                    <figure>
+                      <figcaption>Extraction overlay</figcaption>
+                      <img id="overlayImage" alt="Extraction overlay">
+                    </figure>
+                  </div>
+                  <div id="issuesBox" class="issues"></div>
+                  <div class="table-wrap">
+                    <table id="seriesTable">
+                      <thead>
+                        <tr>
+                          <th>Series</th>
+                          <th>Role</th>
+                          <th>Axis</th>
+                          <th>Points</th>
+                          <th>First point</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <details class="events">
+              <summary>Pipeline events</summary>
+              <div id="eventsList"></div>
+            </details>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

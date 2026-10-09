@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "registry_version": "2026-10-07.four-line-families.categorical-tracing",
+  "modification_note": "chart_fmailiy 다시 4개로 수정",
+  "enabled_extraction_families": [
+    {
+      "id": "current_voltage_power_dual_y",
+      "display_name": "Current-voltage-power dual-y chart",
+      "aliases": ["C-V-P", "I-V-P", "current-voltage-power", "current density-voltage-power density"],
+      "enabled_for_extraction": true,
+      "required_visual_features": [
+        "A scientific line chart with current or current density on the x axis.",
+        "Voltage is represented on the left y axis.",
+        "Power density or power is represented on the right y axis.",
+        "The chart uses two y axes or otherwise clearly maps voltage and power to separate value scales.",
+        "The voltage and power curves are drawn in distinguishable colors, not just black lines told apart by marker shape or line style."
+      ],
+      "positive_axis_label_cues": {
+        "x": ["current density", "current", "A cm", "mA cm", "A/cm", "mA/cm"],
+        "left_y": ["voltage", "cell voltage", "V"],
+        "right_y": ["power density", "power", "W cm", "mW cm", "W/cm", "mW/cm"]
+      },
+      "negative_cues": [
+        "Marker-only scatter chart without visible connecting lines - not currently extractable",
+        "Nyquist or impedance semicircle plot",
+        "bar chart",
+        "histogram",
+        "pie chart",
+        "SEM or microscopy image",
+        "process schematic",
+        "single-axis polarization curve without power axis",
+        "a chart whose x axis positions are category labels rather than numbers — use categorical_line_chart instead",
+        "a chart whose curves are not distinguishable by color (e.g. all-black curves told apart only by marker shape or line style) — not currently extractable"
+      ],
+      "output_requirements": [
+        "Set extraction_family to current_voltage_power_dual_y.",
+        "Set is_extraction_target=true.",
+        "Set is_target_dual_y=true.",
+        "Set chart_family to dual_y_current_voltage_power or a close descriptive variant.",
+        "Return bottom, left, and right axis geometry and numeric tick labels when visible.",
+        "Return legend_items when series labels are visible.",
+        "For each legend item, set axis_binding_hint to left_y or right_y by matching the legend label's meaning (e.g. a voltage-like label) to the matching axis title. Leave axis_binding_hint null only when the voltage and power-density curves for the same condition are drawn in the exact same color and cannot be told apart from the legend alone."
+      ]
+    },
+    {
+      "id": "single_axis_line_chart",
+      "display_name": "Single y-axis line chart",
+      "aliases": ["single-axis I-V curve", "polarization curve without power axis", "conductivity vs temperature plot", "generic XY line chart", "single_axis_iv_curve"],
+      "enabled_for_extraction": true,
+      "required_visual_features": [
+        "A scientific line chart with exactly one y axis (no second, right-side y axis with its own scale).",
+        "One or more distinguishable data series, told apart by curve/marker color.",
+        "Numeric tick labels on the x axis and the single y axis."
+      ],
+      "negative_cues": [
+        "Marker-only scatter chart without visible connecting lines - not currently extractable",
+        "A chart with two differently-scaled y axes (left and right) — use one of the dual-y families instead",
+        "Nyquist or impedance semicircle plot without numeric axes suitable for digitization",
+        "bar chart",
+        "histogram",
+        "pie chart",
+        "SEM or microscopy image",
+        "process schematic",
+        "a chart whose x axis positions are category labels (sample names, material names, conditions) rather than numbers, even if points are connected by lines — use categorical_line_chart instead",
+        "a chart whose data series are all the same color and distinguished only by marker shape or line style, not color — not currently extractable"
+      ],
+      "output_requirements": [
+        "Set extraction_family to single_axis_line_chart.",
+        "Set is_extraction_target=true.",
+        "Set is_target_dual_y=false.",
+        "Set chart_family to single_axis_line_chart.",
+        "Return bottom and left axis geometry and numeric tick labels when visible.",
+        "Return legend_items when series labels are visible. Since there is only one y axis, set axis_binding_hint to left_y for every legend item (or null if unsure)."
+      ]
+    },
+    {
+      "id": "categorical_line_chart",
+      "modification_note": "categorical 처리를 위한 수정",
+      "display_name": "Line chart with a categorical (non-numeric) x axis",
+      "aliases": ["profile chart", "sample comparison line chart", "condition comparison chart"],
+      "enabled_for_extraction": true,
+      "required_visual_features": [
+        "A line chart with visible connecting lines (markers on lines are allowed) whose x axis positions are category labels — sample names, material names, conditions, or similar text — not numbers.",
+        "One or more distinguishable data series, told apart by curve/marker color."
+      ],
+      "negative_cues": [
+        "Marker-only scatter chart without visible connecting lines - not currently extractable",
+        "A chart whose x axis is numeric (has a real numeric scale with tick values) — use single_axis_line_chart or one of the dual-y families instead",
+        "A bar chart — bars, not lines or connected markers, are not currently extractable",
+        "A pie or donut chart — not currently extractable",
+        "a chart whose data series are all the same color and distinguished only by marker shape or line style, not color — not currently extractable"
+      ],
+      "output_requirements": [
+        "Set extraction_family to categorical_line_chart.",
+        "Set is_extraction_target=true.",
+        "Set is_target_dual_y=false.",
+        "Set chart_family to categorical_line_chart.",
+        "The CMSL method traces this family from pixels before table conversion. Return plot frame and bottom/left/right axis geometry when visible. For bottom ticks, return each category label and its actual tick_position_px; keep label_numeric_value null for category labels. Return numeric y ticks and legend_items. Do not invent unreadable geometry; record an issue so Codex table-reading fallback can be used."
+      ]
+    },
+    {
+      "id": "dual_y_generic_line_chart",
+      "display_name": "Generic dual-y-axis line chart (not current-voltage-power)",
+      "aliases": ["dual-axis chart", "twin y-axis chart", "secondary y-axis chart"],
+      "enabled_for_extraction": true,
+      "required_visual_features": [
+        "A scientific line chart with two distinct, differently-scaled y axes (left and right), for a pair of quantities other than the current-voltage-power combination.",
+        "Legend or color coding that indicates which axis each curve maps to.",
+        "The curves are drawn in distinguishable colors, not just black lines told apart by marker shape or line style."
+      ],
+      "negative_cues": [
+        "Marker-only scatter chart without visible connecting lines - not currently extractable",
+        "Current-voltage-power dual-y chart — use current_voltage_power_dual_y instead",
+        "Nyquist or impedance semicircle plot",
+        "bar chart",
+        "histogram",
+        "pie chart",
+        "a chart whose x axis positions are category labels rather than numbers — use categorical_line_chart instead",
+        "a chart whose data series are all the same color and distinguished only by marker shape or line style, not color — not currently extractable"
+      ],
+      "output_requirements": [
+        "Set extraction_family to dual_y_generic_line_chart.",
+        "Set is_extraction_target=true.",
+        "Set is_target_dual_y=false.",
+        "Set chart_family to dual_y_generic_line_chart.",
+        "Return bottom, left, and right axis geometry and numeric tick labels when visible.",
+        "For each legend item, set axis_binding_hint to left_y or right_y by matching the legend label's meaning to the corresponding axis title. This chart family relies on that hint, since curve shape alone cannot tell the two axes apart here — leave it null only when you truly cannot tell."
+      ]
+    }
+  ],
+  "known_non_target_chart_families": [
+    "nyquist_impedance",
+    "bode_impedance",
+    "arrhenius_plot",
+    "xrd_pattern",
+    "raman_spectrum",
+    "ftir_spectrum",
+    "bar_chart",
+    "pie_chart",
+    "scatter_plot",
+    "box_plot",
+    "table_like_chart",
+    "unknown_chart"
+  ]
+}

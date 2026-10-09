@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "registry_version": "2026-10-07.cmsl-minimal-categorical",
+  "enabled_extraction_families": [
+    {
+      "id": "current_voltage_power_dual_y",
+      "display_name": "Current-voltage-power dual-y chart",
+      "aliases": [
+        "C-V-P",
+        "I-V-P",
+        "current-voltage-power",
+        "current density-voltage-power density"
+      ],
+      "enabled_for_extraction": true,
+      "required_visual_features": [
+        "A scientific line/scatter chart with current or current density on the x axis.",
+        "Voltage is represented on the left y axis.",
+        "Power density or power is represented on the right y axis.",
+        "The chart uses two y axes or otherwise clearly maps voltage and power to separate value scales.",
+        "The voltage and power curves are drawn in distinguishable colors, not just black lines told apart by marker shape or line style.",
+        "At least two visible line series; do not target an isolated single-series chart or a marker-only scatter chart."
+      ],
+      "positive_axis_label_cues": {
+        "x": [
+          "current density",
+          "current",
+          "A cm",
+          "mA cm",
+          "A/cm",
+          "mA/cm"
+        ],
+        "left_y": [
+          "voltage",
+          "cell voltage",
+          "V"
+        ],
+        "right_y": [
+          "power density",
+          "power",
+          "W cm",
+          "mW cm",
+          "W/cm",
+          "mW/cm"
+        ]
+      },
+      "negative_cues": [
+        "Nyquist or impedance semicircle plot",
+        "bar chart",
+        "histogram",
+        "pie chart",
+        "SEM or microscopy image",
+        "process schematic",
+        "a chart whose curves are not distinguishable by color (e.g. all-black curves told apart only by marker shape or line style) — not currently extractable",
+        "A categorical x axis uses categorical_line_chart instead. A single-series numeric chart is not a CMSL extraction target."
+      ],
+      "output_requirements": [
+        "Set extraction_family to current_voltage_power_dual_y.",
+        "Set is_extraction_target=true.",
+        "Set is_target_dual_y=true.",
+        "Set chart_family to dual_y_current_voltage_power or a close descriptive variant.",
+        "Return bottom, left, and right axis geometry and numeric tick labels when visible.",
+        "Return legend_items when series labels are visible.",
+        "For each legend item, set axis_binding_hint to left_y or right_y by matching the legend label's meaning (e.g. a voltage-like label) to the matching axis title. Leave axis_binding_hint null only when the voltage and power-density curves for the same condition are drawn in the exact same color and cannot be told apart from the legend alone."
+      ],
+      "modification_note": "###수정 차이 04: C-V-P ID를 유지하되 CMSL multi-series 조건을 추가합니다."
+    },
+    {
+      "id": "cmsl_line_chart",
+      "display_name": "Complex multi-series line chart",
+      "enabled_for_extraction": true,
+      "modification_note": "###수정 차이 04: single_axis_line_chart와 dual_y_generic_line_chart를 대체합니다.",
+      "required_visual_features": [
+        "At least two visible, distinguishable scientific line series (lines may also have markers).",
+        "Numeric x-axis and numeric y-axis scales; one or two y axes are allowed.",
+        "Series can be distinguished by color; a same-condition voltage/power pair may share color in a C-V-P chart.",
+        "Do not classify a lone series, categorical x-axis chart, or marker-only scatter chart as this target."
+      ],
+      "negative_cues": [
+        "bar or pie chart",
+        "image or diagram",
+        "table",
+        "categorical x axis",
+        "single data series",
+        "only scattered markers without visible connecting lines"
+      ],
+      "output_requirements": [
+        "Set extraction_family and chart_family to cmsl_line_chart.",
+        "Set is_chart=true and is_extraction_target=true only when the CMSL requirements are met.",
+        "Set is_target_dual_y=false; this legacy flag is reserved for current_voltage_power_dual_y.",
+        "Return bottom, left, and right axis geometry when visible, with numeric ticks and axis titles.",
+        "Return legend items when visible and axis_binding_hint when it can be read.",
+        "Prefer current_voltage_power_dual_y for a qualifying current-voltage-power chart."
+      ]
+    },
+    {
+      "id": "categorical_line_chart",
+      "display_name": "Line/scatter chart with a categorical (non-numeric) x axis",
+      "aliases": [
+        "profile chart",
+        "sample comparison line chart",
+        "condition comparison chart"
+      ],
+      "enabled_for_extraction": true,
+      "required_visual_features": [
+        "A line or scatter chart (points connected by lines, or scattered markers) whose x axis positions are category labels — sample names, material names, conditions, or similar text — not numbers.",
+        "One or more distinguishable data series, told apart by curve/marker color."
+      ],
+      "negative_cues": [
+        "A chart whose x axis is numeric (has a real numeric scale with tick values) — use single_axis_line_chart or one of the dual-y families instead",
+        "A bar chart — bars, not lines or connected markers, are not currently extractable",
+        "A pie or donut chart — not currently extractable",
+        "a chart whose data series are all the same color and distinguished only by marker shape or line style, not color — not currently extractable"
+      ],
+      "output_requirements": [
+        "Set extraction_family to categorical_line_chart.",
+        "Set is_extraction_target=true.",
+        "Set is_target_dual_y=false.",
+        "Set chart_family to categorical_line_chart.",
+        "This family is read directly by codex from the panel crop rather than traced pixel-by-pixel, since there is no numeric x axis to calibrate pixel positions against. axes/ticks geometry are not required — a reasonable panel_bbox_figure_px is enough. Still return legend_items when a legend is visible, since it helps identify the panel."
+      ]
+    }
+  ],
+  "known_non_target_chart_families": [
+    "nyquist_impedance",
+    "bode_impedance",
+    "arrhenius_plot",
+    "xrd_pattern",
+    "raman_spectrum",
+    "ftir_spectrum",
+    "bar_chart",
+    "pie_chart",
+    "scatter_plot",
+    "box_plot",
+    "table_like_chart",
+    "unknown_chart",
+    "single_series_line_chart"
+  ],
+  "modification_note": "###수정 categorical 복원: CMSL과 제한된 C-V-P에 기존 categorical_line_chart 직접 읽기 경로를 추가합니다."
+}
