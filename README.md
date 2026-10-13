@@ -112,7 +112,7 @@ The `data/` directory is created on first run and is git-ignored.
 
 ## ChartQA Evaluation
 
-This evaluation uses 21 multi-series line charts from the [ChartQA](https://github.com/vis-nlp/ChartQA) **test** split ([ids.txt](experiments/chartqa/ids.txt)). Run all commands from the repository root with the virtual environment activated.
+This evaluation uses 10 multi-series line charts (9 numeric-x, 1 categorical-x) from the [ChartQA](https://github.com/vis-nlp/ChartQA) **test** split ([ids.txt](experiments/chartqa/ids.txt)). Run all commands from the repository root with the virtual environment activated.
 
 **1. Prepare data**: download ChartQA (~875 MB) and build the input PDF.
 
@@ -124,21 +124,15 @@ python experiments/chartqa/prepare_chartqa.py --chartqa "ChartQA Dataset.zip"
 
 This writes `data/chartqa/png/`, `data/chartqa/tables/` (ground truth), and `data/chartqa/selected_images.pdf` (one chart per page).
 
-**2. Extract**: start the server and upload the PDF.
+**2. Extract and evaluate**: with the server running (see [Start the server](#1-start-the-server)), run:
 
 ```bash
-curl -F "file=@data/chartqa/selected_images.pdf" "http://127.0.0.1:8092/api/jobs"
+python experiments/chartqa/run_chartqa.py
 ```
 
-**3. Evaluate**: once the job is `completed`:
+This uploads `selected_images.pdf`, prints the job progress until extraction finishes, and then scores the results. To re-score a finished job without extracting again, add `--job <job_id>`.
 
-```bash
-JOB=<job_id>
-python experiments/chartqa/prepare_eval.py --job $JOB
-python experiments/chartqa/evaluate.py --run chartqa21_$JOB --data experiments/chartqa/runs/chartqa21_$JOB/dataset
-```
-
-The metric is **RMS-F1** (Relative Mapping Similarity, DePlot; Liu et al., 2022) with τ = θ = 1.0. The mean is written to `experiments/chartqa/runs/chartqa21_<job_id>/summary.json` and per-chart scores to `per_image.csv`.
+The metric is **RMS-F1** (Relative Mapping Similarity, DePlot; Liu et al., 2022) with τ = θ = 1.0. The mean is printed and written to `experiments/chartqa/runs/chartqa/summary.json`; per-chart scores are in `per_image.csv`.
 
 ## Configuration
 

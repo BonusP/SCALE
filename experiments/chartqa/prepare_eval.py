@@ -1,10 +1,12 @@
 """완료된 추출 job의 결과를 evaluate.py 입력 형식으로 변환합니다.
 
-    python experiments/chartqa/prepare_eval.py --job <job_id>
+    python experiments/chartqa/prepare_eval.py [--job <job_id>]
+
+--job을 생략하면 selected_images.pdf를 처리한 job 중 가장 최근에 완료된 것을 씁니다.
 
 PDF의 n번째 페이지(chart_id의 `_img{n:03d}_`)를 ids.txt의 n번째 ChartQA id와 짝짓습니다.
 OECD 표는 행이 series·열이 연도이므로 evaluate.py가 기대하는 방향(행=x, 열=series)으로 전치합니다.
-결과는 runs/<name>/ 에 raw/, dataset/, mapping.json, job.json 으로 저장됩니다.
+결과는 runs/<name>/ (기본: runs/chartqa/) 에 raw/, dataset/, mapping.json, job.json 으로 저장됩니다.
 """
 import argparse
 import csv
@@ -17,30 +19,38 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+PDF_NAME = "selected_images.pdf"
+DONE_STATUSES = ("completed", "completed_with_skips")
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--job", required=True, help="selected_images.pdf를 추출한 job_id")
-    ap.add_argument("--data-root", type=Path, default=REPO / "data", help="mvp.sqlite3와 jobs/가 있는 폴더")
-    ap.add_argument("--gt-dir", type=Path, default=REPO / "data" / "chartqa" / "tables")
-    ap.add_argument("--ids", type=Path, default=HERE / "ids.txt")
-    ap.add_argument("--name", help="runs/ 아래 이름 (기본: chartqa21_<job>)")
-    a = ap.parse_args()
-
+def prepare(job_id: str | None = None, data_root: Path = REPO / "data",
+            gt_dir: Path = REPO / "data" / "chartqa" / "tables", ids_path: Path = HERE / "ids.txt",
+            name: str = "chartqa") -> str:
+    """Write runs/<name>/ for evaluate.py and return the run name."""
+    a = argparse.Namespace(job=job_id, data_root=data_root, gt_dir=gt_dir, ids=ids_path, name=name)
     ids = [line.strip() for line in a.ids.read_text(encoding="utf-8").splitlines() if line.strip()]
     page_gt = {index: gt_id for index, gt_id in enumerate(ids, start=1)}
-    run = HERE / "runs" / (a.name or f"chartqa21_{a.job}")
+    run = HERE / "runs" / a.name
     raw = run / "raw"
     dataset = run / "dataset"
     raw.mkdir(parents=True, exist_ok=True)
     dataset.mkdir(exist_ok=True)
     with sqlite3.connect((a.data_root / "mvp.sqlite3").resolve().as_uri() + "?mode=ro", uri=True) as c:
         c.row_factory = sqlite3.Row
-        row = c.execute("select * from jobs where job_id=?", (a.job,)).fetchone()
-        if row is None:
-            raise SystemExit(f"job not found: {a.job}")
+        if a.job:
+            row = c.execute("select * from jobs where job_id=?", (a.job,)).fetchone()
+            if row is None:
+                raise SystemExit(f"job not found: {a.job}")
+        else:
+            row = c.execute(
+                "select * from jobs where source_pdf_name=? and status in (?, ?) order by created_at desc limit 1",
+                (PDF_NAME, *DONE_STATUSES),
+            ).fetchone()
+            if row is None:
+                raise SystemExit(f"no completed job for {PDF_NAME}; upload it and wait until the job is completed")
         job = dict(row)
+        a.job = job["job_id"]
+        print("Job:", a.job, f"({job['status']})")
         charts = [dict(r) for r in c.execute("select * from charts where job_id=? order by image_name", (a.job,))]
     manifest, seen = [], set()
     for chart in charts:
@@ -88,7 +98,19 @@ def main() -> None:
     (run / "mapping.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     (run / "job.json").write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
     print("Prepared:", len(manifest), "Run:", run.name)
-    print(f"Next: python {Path(__file__).with_name('evaluate.py')} --run {run.name} --data {dataset}")
+    return run.name
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--job", help=f"{PDF_NAME}를 추출한 job_id (기본: 가장 최근에 완료된 job)")
+    ap.add_argument("--data-root", type=Path, default=REPO / "data", help="mvp.sqlite3와 jobs/가 있는 폴더")
+    ap.add_argument("--gt-dir", type=Path, default=REPO / "data" / "chartqa" / "tables")
+    ap.add_argument("--ids", type=Path, default=HERE / "ids.txt")
+    ap.add_argument("--name", default="chartqa", help="runs/ 아래 이름")
+    a = ap.parse_args()
+    run = prepare(a.job, a.data_root, a.gt_dir, a.ids, a.name)
+    print(f"Next: python experiments/chartqa/evaluate.py --run {run}")
 
 
 if __name__ == "__main__":

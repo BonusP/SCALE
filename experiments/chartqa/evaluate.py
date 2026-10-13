@@ -1,6 +1,6 @@
 """예측 테이블 vs ChartQA 정답 테이블 채점 (RMS-F1).
 
-    python evaluate.py --run <run> --data <run>/dataset
+    python experiments/chartqa/evaluate.py [--run chartqa]
 
 RMS(Relative Mapping Similarity, DePlot: Liu et al., 2022, arXiv:2212.10505 §3.1):
 표를 (행 헤더 r, 열 헤더 c, 값 v) 튜플 집합으로 보고
@@ -207,15 +207,15 @@ def evaluate(run: str, data: Path) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--run", action="append", required=True)
-    ap.add_argument("--data", default=str(HERE / "data"))
+    ap.add_argument("--run", default="chartqa", help="runs/ 아래 이름 (prepare_eval.py의 --name)")
+    ap.add_argument("--data", help="manifest.jsonl과 GT 표가 있는 폴더 (기본: runs/<run>/dataset)")
     ap.add_argument("--tau", type=float, default=1.0, help="RMS 텍스트 거리 절단값")
     ap.add_argument("--theta", type=float, default=1.0, help="RMS 숫자 상대오차 절단값")
     a = ap.parse_args()
     global TAU, THETA
     TAU, THETA = a.tau, a.theta
-    for run in a.run:
-        print(json.dumps(evaluate(run, Path(a.data)), indent=1, ensure_ascii=False))
+    data = Path(a.data) if a.data else HERE / "runs" / a.run / "dataset"
+    print(json.dumps(evaluate(a.run, data), indent=1, ensure_ascii=False))
 
 
 if __name__ == "__main__":
