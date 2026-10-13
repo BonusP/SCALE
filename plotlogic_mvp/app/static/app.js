@@ -120,7 +120,7 @@ function renderCharts(charts) {
     item.innerHTML = `
       <div class="item-title">${escapeHtml(chart.image_name)}</div>
       <div class="item-meta">${escapeHtml(chartFamilyLabel(chart))} · confidence ${Number(chart.confidence || 0).toFixed(2)}</div>
-      <div class="item-meta"><span class="method-tag">${escapeHtml(chart.method || "baseline")}</span></div>
+      <div class="item-meta"><span class="method-tag">${escapeHtml(chart.method || "cmsl_minimal")}</span></div>
       <div class="item-meta">${escapeHtml(chartBadge(chart))}</div>
     `;
     item.addEventListener("click", () => loadChart(chart.job_id, chart.chart_id));
@@ -137,7 +137,7 @@ async function loadJob(jobId) {
   setText("jobTitle", job.title || job.source_pdf_name);
   setText(
     "jobMeta",
-    `PaperRAG paper ${job.paper_id} · ${job.source_pdf_name} · method ${job.method || "baseline"}`
+    `PaperRAG paper ${job.paper_id} · ${job.source_pdf_name} · method ${job.method || "cmsl_minimal"}`
   );
   setText("jobStatus", job.status);
   setText("jobPhase", job.phase);

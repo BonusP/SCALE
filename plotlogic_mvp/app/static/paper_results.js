@@ -69,7 +69,7 @@ function renderCharts(charts) {
     item.innerHTML = `
       <div class="item-title">${escapeHtml(chart.image_name)}</div>
       <div class="item-meta">${escapeHtml(chartFamilyLabel(chart))} · confidence ${Number(chart.confidence || 0).toFixed(2)}</div>
-      <div class="item-meta"><span class="method-tag">${escapeHtml(chart.method || "baseline")}</span></div>
+      <div class="item-meta"><span class="method-tag">${escapeHtml(chart.method || "cmsl_minimal")}</span></div>
       <div class="item-meta">${escapeHtml(chartBadge(chart))}</div>
       <div class="item-meta">Job ${escapeHtml(String(chart.job_id).slice(0, 8))}</div>
     `;

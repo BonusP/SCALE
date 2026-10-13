@@ -26,30 +26,15 @@ from .db import (
     list_jobs_for_paper,
     list_jobs,
     list_paper_extractions,
-    safe_relative,
 )
 from .services.ocr_backend import read_text_cached
 from .services.ocr_geometry import build_ocr_text_geometry
-from .services.run_methods import METHODS, available_methods, resolve_method
-from .services.vision import available_prompts, resolve_prompt_variant
+from .services.run_methods import DEFAULT_METHOD
 from .services.paperrag_bridge import list_canonical_papers, paper_snapshot, register_uploaded_pdf
 from .services.pipeline import process_job_sequence
-from .services.cvp_lab import (
-    add_fixture_from_image as cvp_lab_add_fixture_from_image,
-    find_near_duplicate_fixture_groups as cvp_lab_find_near_duplicate_fixture_groups,
-    get_run as cvp_lab_get_run,
-    import_existing_targets as cvp_lab_import_existing_targets,
-    import_plotlogic_phase1_dual_y_cvp as cvp_lab_import_plotlogic_phase1,
-    list_fixtures as cvp_lab_list_fixtures,
-    list_runs as cvp_lab_list_runs,
-    run_lab as cvp_lab_run,
-    run_result_mask_correction as cvp_lab_run_result_mask_correction,
-)
 
 
-# ###수정 별도 GUI의 title에 CMSL 실험 실행임을 표시합니다.
-app = FastAPI(title="PlotLogic CMSL Minimal Experiment")
-# ###
+app = FastAPI(title="SCALE")
 app.mount("/static", StaticFiles(directory=config.PROJECT_ROOT / "app" / "static"), name="static")
 
 
@@ -313,232 +298,10 @@ def paper_results_page(paper_id: int) -> HTMLResponse:
     return _render_page("paper_results.html")
 
 
-@app.get("/cvp-lab", response_class=HTMLResponse)
-def cvp_lab_page() -> HTMLResponse:
-    return _render_page("cvp_lab.html")
-
-
-def _cvp_fixture_payload(fixture: dict[str, Any]) -> dict[str, Any]:
-    meta = fixture.get("meta") if isinstance(fixture.get("meta"), dict) else {}
-    return {
-        "fixture_id": fixture.get("fixture_id"),
-        "image_path": fixture.get("image_path"),
-        "image_url": _file_url(fixture.get("image_path")),
-        "image_info": fixture.get("image_info") or {},
-        "source": {
-            "job_id": meta.get("source_job_id"),
-            "paper_id": meta.get("source_paper_id"),
-            "panel_id": meta.get("source_panel_id"),
-            "kind": meta.get("source"),
-            "original_filename": meta.get("original_filename"),
-        },
-    }
-
-
-def _cvp_result_payload(result: dict[str, Any]) -> dict[str, Any]:
-    payload = dict(result)
-    for field in (
-        "overlay_path",
-        "plot_crop_path",
-        "color_filter_source_path",
-        "final_trace_overlay_path",
-        "raw_vs_final_trace_overlay_path",
-        "role_recolored_crop_path",
-        "llm_mask_correction_contact_sheet_path",
-        "llm_mask_correction_comparison_path",
-        "mask_reconstruction_comparison_path",
-        "csv_path",
-    ):
-        url_field = field.replace("_path", "_url")
-        payload[url_field] = _file_url(payload.get(field))
-    result_dir = Path(str(payload.get("result_dir") or ""))
-    series_candidates = _read_json(result_dir / "series_candidates.json", {})
-    candidate_labels: dict[str, str] = {}
-    candidate_colors: dict[str, Any] = {}
-    for item in series_candidates.get("items", []) if isinstance(series_candidates.get("items"), list) else []:
-        if not isinstance(item, dict):
-            continue
-        series_id = item.get("series_id")
-        if not isinstance(series_id, str):
-            continue
-        candidate_labels[series_id] = str(item.get("legend_label") or series_id)
-        candidate_colors[series_id] = item.get("target_color_rgb")
-
-    def mask_payloads(folder_name: str) -> list[dict[str, Any]]:
-        folder = result_dir / folder_name
-        if not folder.exists():
-            return []
-        masks: list[dict[str, Any]] = []
-        for path in sorted(folder.glob("*.png")):
-            series_id = path.stem
-            for suffix in (
-                "_power_density_after_voltage_exclusion_enhanced",
-                "_power_density_after_voltage_exclusion",
-                "_after_power_density_exclusion",
-                "_voltage_branch",
-            ):
-                if series_id.endswith(suffix):
-                    series_id = series_id[: -len(suffix)]
-                    break
-            masks.append(
-                {
-                    "filename": path.name,
-                    "series_id": series_id,
-                    "label": candidate_labels.get(series_id, series_id),
-                    "target_color_rgb": candidate_colors.get(series_id),
-                    "url": _file_url(path),
-                }
-            )
-        return masks
-
-    payload["mask_artifacts"] = mask_payloads("masks")
-    payload["role_mask_artifacts"] = mask_payloads("role_masks")
-    payload["llm_corrected_mask_artifacts"] = mask_payloads("llm_corrected_masks")
-    payload["cleaned_mask_artifacts"] = mask_payloads("cleaned_masks")
-    payload["reconstructed_mask_artifacts"] = mask_payloads("reconstructed_masks")
-    payload["lab_inputs"] = _read_json(result_dir / "cvp_lab_inputs.json", {})
-    payload["series_candidates"] = series_candidates
-    payload["axis_mapping"] = _read_json(result_dir / "axis_mapping.json", {})
-    payload["curve_series_data"] = _read_json(result_dir / "curve_series_data.json", {})
-    payload["curve_traces_crop_px"] = _read_json(result_dir / "curve_traces_crop_px.json", {})
-    payload["mask_quality_qa"] = _read_json(result_dir / "mask_quality_qa.json", {})
-    payload["trace_overlay_qa"] = _read_json(result_dir / "trace_overlay_qa.json", {})
-    payload["visual_qa_summary"] = _read_json(result_dir / "visual_qa_summary.json", {})
-    payload["visual_qa_llm_input"] = _read_json(result_dir / "visual_qa_llm_input.json", {})
-    payload["llm_mask_correction_summary"] = _read_json(result_dir / "llm_mask_correction_summary.json", {})
-    payload["mask_reconstruction_summary"] = _read_json(result_dir / "mask_reconstruction_summary.json", {})
-    payload["debug_artifacts"] = [
-        {
-            "label": label,
-            "url": _file_url(result_dir / filename),
-        }
-        for label, filename in [
-            ("lab_inputs", "cvp_lab_inputs.json"),
-            ("validation", "validation_report.json"),
-            ("image_quality", "image_quality_report.json"),
-            ("series_candidates", "series_candidates.json"),
-            ("curve_traces", "curve_traces_crop_px.json"),
-            ("final_traces", "final_curve_traces_crop_px.json"),
-            ("curve_series", "curve_series_data.json"),
-            ("mask_quality_qa", "mask_quality_qa.json"),
-            ("trace_overlay_qa", "trace_overlay_qa.json"),
-            ("visual_qa", "visual_qa_summary.json"),
-            ("visual_qa_llm_input", "visual_qa_llm_input.json"),
-            ("llm_mask_correction_input", "llm_mask_correction_input.json"),
-            ("llm_mask_correction_plan", "llm_mask_correction_plan.json"),
-            ("llm_mask_correction_applied", "llm_mask_correction_applied.json"),
-            ("llm_mask_correction_summary", "llm_mask_correction_summary.json"),
-            ("mask_reconstruction_summary", "mask_reconstruction_summary.json"),
-        ]
-        if (result_dir / filename).exists()
-    ]
-    return payload
-
-
-def _cvp_run_payload(run: dict[str, Any] | None) -> dict[str, Any] | None:
-    if not run:
-        return None
-    payload = dict(run)
-    payload["results"] = [_cvp_result_payload(result) for result in run.get("results", [])]
-    return payload
-
-
-@app.get("/api/cvp-lab")
-def api_cvp_lab() -> dict[str, Any]:
-    fixtures = cvp_lab_list_fixtures()
-    return {
-        "fixtures": [_cvp_fixture_payload(item) for item in fixtures],
-        "near_duplicate_groups": cvp_lab_find_near_duplicate_fixture_groups(fixtures),
-        "runs": [_cvp_run_payload(item) for item in cvp_lab_list_runs()],
-    }
-
-
-@app.post("/api/cvp-lab/import-existing")
-def api_cvp_lab_import_existing() -> dict[str, Any]:
-    result = cvp_lab_import_existing_targets()
-    fixtures = cvp_lab_list_fixtures()
-    return {
-        **result,
-        "fixtures": [_cvp_fixture_payload(item) for item in fixtures],
-        "near_duplicate_groups": cvp_lab_find_near_duplicate_fixture_groups(fixtures),
-    }
-
-
-@app.post("/api/cvp-lab/import-plotlogic-phase1")
-def api_cvp_lab_import_plotlogic_phase1() -> dict[str, Any]:
-    result = cvp_lab_import_plotlogic_phase1()
-    fixtures = cvp_lab_list_fixtures()
-    return {
-        **result,
-        "fixtures": [_cvp_fixture_payload(item) for item in fixtures],
-        "near_duplicate_groups": cvp_lab_find_near_duplicate_fixture_groups(fixtures),
-    }
-
-
-@app.post("/api/cvp-lab/fixtures")
-async def api_cvp_lab_upload_fixtures(files: list[UploadFile] = File(...)) -> dict[str, Any]:
-    if not files:
-        raise HTTPException(status_code=400, detail="At least one image file is required.")
-    imported: list[dict[str, Any]] = []
-    skipped: list[dict[str, str]] = []
-    with tempfile.TemporaryDirectory(prefix="cvp-lab-fixtures-") as tmpdir:
-        tmp_root = Path(tmpdir)
-        for file in files:
-            filename = file.filename or "fixture.png"
-            suffix = Path(filename).suffix.lower()
-            if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff", ".bmp"}:
-                skipped.append({"filename": filename, "reason": "unsupported_file_type"})
-                continue
-            tmp_path = tmp_root / filename
-            with tmp_path.open("wb") as handle:
-                shutil.copyfileobj(file.file, handle)
-            try:
-                imported.append(cvp_lab_add_fixture_from_image(tmp_path, original_filename=filename))
-            except Exception as exc:
-                skipped.append({"filename": filename, "reason": str(exc)})
-    fixtures = cvp_lab_list_fixtures()
-    return {
-        "imported_count": len(imported),
-        "imported": imported,
-        "skipped": skipped,
-        "fixtures": [_cvp_fixture_payload(item) for item in fixtures],
-        "near_duplicate_groups": cvp_lab_find_near_duplicate_fixture_groups(fixtures),
-    }
-
-
-@app.post("/api/cvp-lab/run")
-def api_cvp_lab_run() -> dict[str, Any]:
-    try:
-        run = cvp_lab_run()
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"run": _cvp_run_payload(run)}
-
-
-@app.get("/api/cvp-lab/runs/{run_id}")
-def api_cvp_lab_get_run(run_id: str) -> dict[str, Any]:
-    run = _cvp_run_payload(cvp_lab_get_run(run_id))
-    if not run:
-        raise HTTPException(status_code=404, detail="Lab run not found.")
-    return {"run": run}
-
-
-@app.post("/api/cvp-lab/runs/{run_id}/results/{fixture_id}/mask-correction")
-def api_cvp_lab_mask_correction(run_id: str, fixture_id: str) -> dict[str, Any]:
-    try:
-        summary = cvp_lab_run_result_mask_correction(run_id, fixture_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    run = _cvp_run_payload(cvp_lab_get_run(run_id))
-    return {"summary": summary, "run": run}
-
-
 @app.post("/api/jobs")
 async def upload_pdf(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    # ###수정 업로드 API 설명에도 CMSL 기본 method를 표시합니다.
-    method: str | None = Query(None, description="Extraction method key. Defaults to cmsl_minimal."),
 ) -> dict[str, Any]:
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="PDF file is required.")
@@ -561,14 +324,7 @@ async def upload_pdf(
                 "duplicate_match_source": registered.get("match_source"),
                 "reused_running_job": True,
             }
-    try:
-        queued = _queue_methods(
-            # ###수정 실험 GUI에서 PDF 업로드 기본 method를 cmsl_minimal로 지정합니다.
-            paper_id, file.filename, str(registered["title"]), method or "cmsl_minimal", background_tasks
-            # ###
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    queued = _queue_job(paper_id, file.filename, str(registered["title"]), background_tasks)
     return {
         "job_id": queued[0]["job_id"],
         "jobs": queued,
@@ -655,51 +411,23 @@ def api_paper_results(paper_id: int) -> dict[str, Any]:
     }
 
 
-@app.get("/api/prompts")
-def api_list_prompts() -> dict[str, Any]:
-    return {"prompts": available_prompts()}
-
-
-def _queue_methods(
+def _queue_job(
     paper_id: int,
     source_name: str,
     title: str,
-    method: str | None,
     background_tasks: BackgroundTasks,
 ) -> list[dict[str, str]]:
-    """Queue one job per method so both results exist for the same paper.
-
-    Omitting `method` runs every method, which is the point: one action gives a
-    baseline result and an experiment result to compare.
-    """
-    if method:
-        keys = [resolve_method(method).key]
-    else:
-        # ###수정 실험 GUI 재실행은 기본적으로 CMSL method 한 개만 실행합니다.
-        keys = ["cmsl_minimal"]
-        # ###
-    queued: list[dict[str, str]] = []
-    specs: list[tuple[str, str]] = []
-    for key in keys:
-        run_method = METHODS[key]
-        job_id = str(uuid.uuid4())
-        create_job(job_id, paper_id, source_name, title, run_method.prompt_variant, run_method.key)
-        specs.append((job_id, run_method.key))
-        queued.append({"job_id": job_id, "method": run_method.key, "label": run_method.label})
-    background_tasks.add_task(process_job_sequence, paper_id, specs)
-    return queued
-
-
-@app.get("/api/methods")
-def api_list_methods() -> dict[str, Any]:
-    return {"methods": available_methods()}
+    """Queue one extraction job for the paper with the default method."""
+    job_id = str(uuid.uuid4())
+    create_job(job_id, paper_id, source_name, title, DEFAULT_METHOD.prompt_variant, DEFAULT_METHOD.key)
+    background_tasks.add_task(process_job_sequence, paper_id, [(job_id, DEFAULT_METHOD.key)])
+    return [{"job_id": job_id, "method": DEFAULT_METHOD.key, "label": DEFAULT_METHOD.label}]
 
 
 @app.post("/api/paperrag/papers/{paper_id}/extract")
 def api_extract_existing_paper(
     paper_id: int,
     background_tasks: BackgroundTasks,
-    method: str | None = Query(None, description="Extraction method key."),
 ) -> dict[str, Any]:
     snapshot = paper_snapshot(paper_id)
     paper_dir = Path(snapshot["paper_dir"])
@@ -717,10 +445,7 @@ def api_extract_existing_paper(
             "paper": snapshot,
             "reused_running_job": True,
         }
-    try:
-        queued = _queue_methods(paper_id, source_pdf.name, title, method, background_tasks)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    queued = _queue_job(paper_id, source_pdf.name, title, background_tasks)
     return {
         "job_id": queued[0]["job_id"],
         "jobs": queued,

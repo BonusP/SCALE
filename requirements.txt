@@ -1,0 +1,16 @@
+# Python 3.12
+fastapi==0.135.1
+uvicorn==0.42.0
+python-multipart==0.0.20
+pypdf==6.19.0
+pillow==12.1.1
+numpy==2.4.3
+scipy==1.17.1
+rapidocr-onnxruntime==1.4.4
+opendataloader-pdf==2.5.12
+# Pinned transitive dependencies (OCR output depends on the opencv-python version)
+opencv-python==5.0.0.93
+onnxruntime==1.30.0
+pydantic==2.12.5
+# ChartQA evaluation (experiments/chartqa/prepare_chartqa.py)
+matplotlib==3.10.9

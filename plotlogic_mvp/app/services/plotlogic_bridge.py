@@ -12,15 +12,7 @@ from .. import config
 from .bbox_refinement import refine_chart_element_bboxes
 from .chart_geometry import repair_chart_panel_geometry
 from .categorical_tracing import categorical_series  # categorical 처리를 위한 수정
-from .codex_direct import (
-    CATEGORICAL_PROMPT_TEMPLATE as CATEGORICAL_TABLE_PROMPT,
-    PROMPT_TEMPLATE as CURVE_TABLE_PROMPT,
-    read_categorical_table,
-    read_curve_table,
-    to_categorical_series_data,
-    to_curve_series_data,
-    validation_report,
-)
+from .codex_direct import read_categorical_table, to_categorical_series_data, validation_report
 from .ocr_backend import read_text_cached
 from .ocr_geometry import build_ocr_text_geometry
 from .visual_qa import ensure_visual_qa_artifacts
@@ -29,11 +21,8 @@ from .visual_qa import ensure_visual_qa_artifacts
 if str(config.PLOTLOGIC_ROOT) not in sys.path:
     sys.path.insert(0, str(config.PLOTLOGIC_ROOT))
 
-from core.data_extraction_pipeline import run_data_extraction_for_panel  # noqa: E402
-# ###수정 CMSL method에만 복사한 실험 core와 axis-association 호출을 연결합니다.
 from core.data_extraction_pipeline_cmsl import run_data_extraction_for_panel as run_cmsl_extraction  # noqa: E402
 from .curve_axis_association import assign_curve_axes
-# ###
 
 
 def _bbox(raw: Any) -> list[int] | None:
@@ -644,148 +633,9 @@ def export_categorical_csv(curve_series_path: Path, csv_path: Path) -> None:
                 )
 
 
-def run_codex_direct_extraction(
-    job_id: str,
-    paper_id: int,
-    chart_id: str,
-    image_path: Path,
-    vision: dict[str, Any],
-) -> dict[str, Any]:
-    """Extract by asking codex to read the panel's curves, skipping the pixel pipeline.
-
-    Only the panel crop is shared with the other methods; everything downstream of it —
-    geometry, masks, tracing, axis mapping — is replaced by one codex call.
-    """
-    dataset_root, panel_id, panel_rel_path, panel_path, panel_vision, panel_bbox = prepare_dataset(
-        job_id,
-        paper_id,
-        chart_id,
-        image_path,
-        vision,
-    )
-    table = read_curve_table(panel_path)
-    curve_series = to_curve_series_data(panel_id, table)
-    validation = validation_report(curve_series, table)
-
-    result_dir = config.DATA_ROOT / "jobs" / job_id / "plotlogic_runs" / panel_id
-    result_dir.mkdir(parents=True, exist_ok=True)
-    (result_dir / "codex_curve_table.json").write_text(
-        json.dumps(table, indent=2, ensure_ascii=True), encoding="utf-8"
-    )
-    curve_series_path = result_dir / "curve_series_data.json"
-    curve_series_path.write_text(json.dumps(curve_series, indent=2, ensure_ascii=True), encoding="utf-8")
-    (result_dir / "validation_report.json").write_text(
-        json.dumps(validation, indent=2, ensure_ascii=True), encoding="utf-8"
-    )
-    (result_dir / "mvp_extraction_inputs.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "job_id": job_id,
-                "paper_id": paper_id,
-                "panel_id": panel_id,
-                "source_figure_image": str(image_path),
-                "panel_path": str(panel_path),
-                "panel_rel_path": panel_rel_path,
-                "panel_crop_bbox_source_image_px": panel_bbox,
-                "panel_vision": panel_vision,
-                "extraction": "codex_direct",
-                "prompt_template": str(config.PROMPTS_ROOT / CURVE_TABLE_PROMPT),
-            },
-            indent=2,
-            ensure_ascii=True,
-        ),
-        encoding="utf-8",
-    )
-    csv_path = result_dir / "curve_series_data.csv"
-    export_curve_series_csv(curve_series_path, csv_path)
-
-    return {
-        "manifest": {"extraction": "codex_direct", "panel_id": panel_id},
-        "result_dir": result_dir,
-        "panel_path": panel_path,
-        "overlay_path": None,
-        "csv_path": csv_path,
-        "series_count": int(validation["checks"]["final_series_count"]),
-        "visual_qa": None,
-        "issues": validation["issues"] + [f"PANEL_CROP_BBOX_SOURCE_IMAGE:{panel_bbox}"],
-    }
-
-
-def run_codex_direct_categorical_extraction(
-    job_id: str,
-    paper_id: int,
-    chart_id: str,
-    image_path: Path,
-    vision: dict[str, Any],
-) -> dict[str, Any]:
-    """Extract a categorical-x line chart by asking codex to read its (category, value) pairs
-    directly.
-
-    None of these have a numeric axis to calibrate pixels against, so this skips the pixel pipeline
-    entirely — same idea as run_codex_direct_extraction, but reading category/value items instead
-    of curve points, and writing them out with export_categorical_csv's category/value columns
-    instead of export_curve_series_csv's curve-oriented ones.
-    """
-    dataset_root, panel_id, panel_rel_path, panel_path, panel_vision, panel_bbox = prepare_dataset(
-        job_id,
-        paper_id,
-        chart_id,
-        image_path,
-        vision,
-    )
-    table = read_categorical_table(panel_path)
-    curve_series = to_categorical_series_data(panel_id, table)
-    validation = validation_report(curve_series, table)
-
-    result_dir = config.DATA_ROOT / "jobs" / job_id / "plotlogic_runs" / panel_id
-    result_dir.mkdir(parents=True, exist_ok=True)
-    (result_dir / "codex_categorical_table.json").write_text(
-        json.dumps(table, indent=2, ensure_ascii=True), encoding="utf-8"
-    )
-    curve_series_path = result_dir / "curve_series_data.json"
-    curve_series_path.write_text(json.dumps(curve_series, indent=2, ensure_ascii=True), encoding="utf-8")
-    (result_dir / "validation_report.json").write_text(
-        json.dumps(validation, indent=2, ensure_ascii=True), encoding="utf-8"
-    )
-    (result_dir / "mvp_extraction_inputs.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "job_id": job_id,
-                "paper_id": paper_id,
-                "panel_id": panel_id,
-                "source_figure_image": str(image_path),
-                "panel_path": str(panel_path),
-                "panel_rel_path": panel_rel_path,
-                "panel_crop_bbox_source_image_px": panel_bbox,
-                "panel_vision": panel_vision,
-                "extraction": "codex_direct_categorical",
-                "prompt_template": str(config.PROMPTS_ROOT / CATEGORICAL_TABLE_PROMPT),
-            },
-            indent=2,
-            ensure_ascii=True,
-        ),
-        encoding="utf-8",
-    )
-    csv_path = result_dir / "curve_series_data.csv"
-    export_categorical_csv(curve_series_path, csv_path)
-
-    return {
-        "manifest": {"extraction": "codex_direct_categorical", "panel_id": panel_id},
-        "result_dir": result_dir,
-        "panel_path": panel_path,
-        "overlay_path": None,
-        "csv_path": csv_path,
-        "series_count": int(validation["checks"]["final_series_count"]),
-        "visual_qa": None,
-        "issues": validation["issues"] + [f"PANEL_CROP_BBOX_SOURCE_IMAGE:{panel_bbox}"],
-    }
-
-
 # categorical 처리를 위한 수정: retain full pixel-extraction artifacts before table conversion.
 def run_categorical_extraction(job_id, paper_id, chart_id, image_path, vision):
-    result = run_extraction(job_id, paper_id, chart_id, image_path, vision, True, cmsl_minimal=True)
+    result = run_extraction(job_id, paper_id, chart_id, image_path, vision, True)
     out = result["result_dir"]
     inputs = json.loads((out / "mvp_extraction_inputs.json").read_text(encoding="utf-8"))
     mapping = json.loads((out / "axis_mapping.json").read_text(encoding="utf-8"))
@@ -844,7 +694,7 @@ def run_categorical_extraction(job_id, paper_id, chart_id, image_path, vision):
     return result
 
 
-# ###수정 차이 10·18: CMSL method는 색상 수 제한을 풀고 추출 후 VLM axis 대응을 수행합니다.
+# CMSL extraction: no color-count limit, VLM axis association after tracking.
 def run_extraction(
     job_id: str,
     paper_id: int,
@@ -852,7 +702,6 @@ def run_extraction(
     image_path: Path,
     vision: dict[str, Any],
     use_ocr_text: bool = False,
-    cmsl_minimal: bool = False,
 ) -> dict[str, Any]:
     # Snapshot the codex output before panel cropping, coordinate remapping and ink refinement
     # so the debug view can show the uncorrected bboxes.
@@ -864,12 +713,11 @@ def run_extraction(
         image_path,
         vision,
     )
-    # Off for the baseline, so its overrides stay byte-identical to before.
     ocr_text_report: dict[str, Any] | None = None
     if use_ocr_text:
         ocr = read_text_cached(panel_path, panel_path.with_suffix(panel_path.suffix + ".ocr.json"))
-        # OCR annotation bbox 보정을 위한 수정: CMSL uses individual OCR annotation boxes.
-        applied = build_ocr_text_geometry(panel_vision, ocr_items=ocr.get("items") or [], refine_annotations=cmsl_minimal)
+        # CMSL uses individual OCR annotation boxes.
+        applied = build_ocr_text_geometry(panel_vision, ocr_items=ocr.get("items") or [], refine_annotations=True)
         panel_vision = applied["panel_vision"]
         ocr_text_report = {
             "backend": ocr.get("backend"),
@@ -880,21 +728,19 @@ def run_extraction(
         }
     plot_panel, axes_panel, ticks_panel, legend_items, exclusions = overrides_from_vision(panel_id, panel_rel_path, panel_vision)
     out_root = config.DATA_ROOT / "jobs" / job_id / "plotlogic_runs"
-    extractor = run_cmsl_extraction if cmsl_minimal else run_data_extraction_for_panel
-    extra_options = {"axis_binding_resolver": assign_curve_axes} if cmsl_minimal else {}
-    manifest = extractor(
+    manifest = run_cmsl_extraction(
         dataset_root=dataset_root,
         panel_id=panel_id,
         out_root=out_root,
         manual_axis_pairs=None,
-        max_colors=None if cmsl_minimal else 8,
+        max_colors=None,
         exclusion_bboxes_crop_px=exclusions,
         exclusion_source="plotlogic_mvp_vision",
         legend_items=legend_items,
         plot_panel_override=plot_panel,
         axes_panel_override=axes_panel,
         ticks_panel_override=ticks_panel,
-        **extra_options,
+        axis_binding_resolver=assign_curve_axes,
     )
     result_dir = out_root / panel_id
     debug_inputs = {

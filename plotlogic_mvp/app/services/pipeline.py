@@ -13,15 +13,10 @@ from ..db import add_event, list_jobs_for_paper, update_job, update_paper_extrac
 from .bbox_validation import validate_figure_analysis
 from .chart_geometry import repair_chart_panel_geometry
 from .paperrag_bridge import collect_images, paper_snapshot, run_opendataloader_parse, run_paperrag_postprocess
-from .plotlogic_bridge import (
-    run_codex_direct_categorical_extraction,
-    run_categorical_extraction,  # categorical 처리를 위한 수정
-    run_codex_direct_extraction,
-    run_extraction,
-)
+from .plotlogic_bridge import run_categorical_extraction, run_extraction
 
-# categorical 처리를 위한 수정: CMSL traces categorical pixels before table conversion;
-# other methods retain direct reading. A categorical x axis uses label positions, not a numeric fit.
+# Categorical charts are traced in pixels before table conversion; a categorical x axis
+# uses label positions, not a numeric fit.
 CATEGORICAL_CHART_FAMILIES = {"categorical_line_chart"}
 
 # The families Vision is supposed to use only when the x axis is genuinely numeric. Vision's own
@@ -444,14 +439,10 @@ def process_job(job_id: str, paper_id: int, method_key: str | None = None) -> No
                 is_chart = bool(panel.get("is_chart")) and panel_type == "chart"
                 extraction_family = str(panel.get("extraction_family") or "").strip()
                 is_target = bool(panel.get("is_extraction_target") or panel.get("is_target_dual_y")) and bool(extraction_family) and is_chart
-                # ###수정 categorical 복원: CMSL에서도 기존 categorical 직접 읽기 경로를 허용합니다.
-                if method.key == "cmsl_minimal":
-                    # chart_fmailiy 다시 4개로 수정
-                    is_target = is_target and extraction_family in {
-                        "single_axis_line_chart", "dual_y_generic_line_chart",
-                        "current_voltage_power_dual_y", "categorical_line_chart"
-                    }
-                # ###
+                is_target = is_target and extraction_family in {
+                    "single_axis_line_chart", "dual_y_generic_line_chart",
+                    "current_voltage_power_dual_y", "categorical_line_chart"
+                }
                 issues = list(panel.get("issues") or [])
                 update_job(job_id, chart_count=panel_count, phase=f"classifying panel {panel_count}", progress=progress)
 
@@ -492,21 +483,10 @@ def process_job(job_id: str, paper_id: int, method_key: str | None = None) -> No
                     chart_family = "categorical_line_chart"
                 try:
                     if extraction_family in CATEGORICAL_CHART_FAMILIES:
-                        # categorical 처리를 위한 수정: CMSL also produces color filters and traces.
-                        categorical_runner = run_categorical_extraction if method.key == "cmsl_minimal" else run_codex_direct_categorical_extraction
-                        extraction = categorical_runner(
+                        # Categorical charts also produce color filters and traces.
+                        extraction = run_categorical_extraction(
                             job_id, paper_id, chart_id, image_path, panel
                         )
-                    elif method.extraction == "codex_direct":
-                        extraction = run_codex_direct_extraction(
-                            job_id, paper_id, chart_id, image_path, panel
-                        )
-                    # ###수정 CMSL method에서만 실험 core를 실행하여 기존 method의 동작을 보존합니다.
-                    elif method.extraction == "cmsl_minimal":
-                        extraction = run_extraction(
-                            job_id, paper_id, chart_id, image_path, panel, method.use_ocr_text, cmsl_minimal=True
-                        )
-                    # ###
                     else:
                         extraction = run_extraction(
                             job_id, paper_id, chart_id, image_path, panel, method.use_ocr_text

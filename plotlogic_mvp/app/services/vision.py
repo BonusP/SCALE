@@ -174,9 +174,6 @@ VISION_SCHEMA: dict[str, Any] = {
 }
 
 
-BASELINE_PROMPT_TEMPLATE = "figure_panel_classifier.md"
-
-
 def resolve_prompt_variant(variant: str | None = None) -> str:
     """Prompt template for a run: explicit choice, else the configured default.
 
@@ -226,31 +223,6 @@ def _read_prompt_inputs(variant: str | None = None) -> tuple[str, dict[str, Any]
 
 
 # ###수정 차이 04: prompt별 registry와 hash를 구분해 기존 분류와 CMSL 실험을 분리합니다.
-def prompt_sha256_for(template_path: Path) -> str:
-    """Rendered-prompt hash for any template, using the current family registry.
-
-    Candidate files record only this hash, so it is the only way to tell which
-    prompt version produced a stored classification.
-    """
-    family_text = _chart_families_path(template_path.name).read_text(encoding="utf-8")
-    families = json.loads(family_text)
-    rendered = _render_prompt(template_path.read_text(encoding="utf-8"), families)
-    return _digest(rendered, family_text)
-# ###
-
-
-def prompt_templates() -> list[Path]:
-    """Every prompt template, baseline first."""
-    baseline = config.PROMPTS_ROOT / BASELINE_PROMPT_TEMPLATE
-    others = sorted(
-        path
-        for path in config.PROMPTS_ROOT.glob("figure_panel_classifier*.md")
-        if path.name != BASELINE_PROMPT_TEMPLATE
-    )
-    return [baseline, *others]
-
-
-# ###수정 차이 04: prompt별 registry와 hash를 구분해 기존 분류와 CMSL 실험을 분리합니다.
 def _prompt_metadata(
     prompt: str,
     family_text: str,
@@ -276,22 +248,6 @@ def _prompt(variant: str | None = None) -> str:
 def current_prompt_metadata(variant: str | None = None) -> dict[str, Any]:
     prompt, families, family_text = _read_prompt_inputs(variant)
     return _prompt_metadata(prompt, family_text, families, variant)
-
-
-def available_prompts() -> list[dict[str, Any]]:
-    """Selectable prompt templates with their hashes, baseline first."""
-    default = resolve_prompt_variant()
-    entries: list[dict[str, Any]] = []
-    for path in prompt_templates():
-        entries.append(
-            {
-                "variant": path.name,
-                "is_baseline": path.name == BASELINE_PROMPT_TEMPLATE,
-                "is_default": path.name == default,
-                "prompt_sha256": prompt_sha256_for(path),
-            }
-        )
-    return entries
 
 
 def fallback_panel(reason: str) -> dict[str, Any]:
