@@ -1,11 +1,8 @@
 # ###수정 실험 소스만 관리하고 데이터·SQLite·실행 환경은 제외합니다.
 .venv/
 .venv312/
-# 실행 시 생성되는 jobs·papers·manifests·server 로그·SQLite는 제외하고 C-V-P rule lab 메모만 유지합니다.
-data/*
-!data/cvp_rule_lab/
-data/cvp_rule_lab/fixtures/
-data/cvp_rule_lab/runs/
+# 실행 시 생성되는 jobs·papers·manifests·SQLite는 제외합니다.
+data/
 runs/
 tmp/
 __pycache__/
